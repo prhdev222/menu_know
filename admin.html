@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบผู้ดูแล - สุขภาพดี</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="config.js"></script>
+    <script src="shared.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Admin Login Modal -->
+    <div id="adminLoginModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">เข้าสู่ระบบผู้ดูแล</h2>
+            <input type="password" id="adminPassword" placeholder="กรอกรหัสผ่านผู้ดูแลระบบ" 
+                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 mb-4"
+                onkeypress="if(event.key === 'Enter') loginAdmin()">
+            <div class="flex space-x-3">
+                <button onclick="loginAdmin()" class="flex-1 bg-cyan-600 text-white py-2 rounded-lg hover:bg-cyan-700 transition">
+                    เข้าสู่ระบบ
+                </button>
+                <button onclick="backToHome()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">
+                    กลับหน้าแรก
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-4">ตรวจสอบรหัสผ่านใน config.js</p>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminPanel" class="hidden min-h-screen">
+        <!-- Admin Header -->
+        <div class="bg-white shadow">
+            <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-cog mr-2 text-cyan-600"></i>ผู้ดูแลระบบ
+                </h1>
+                <div class="flex space-x-3">
+                    <button onclick="window.open('/', '_blank')" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                        <i class="fas fa-home mr-2"></i>หน้าแรก
+                    </button>
+                    <button onclick="logoutAdmin()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>ออกจากระบบ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Supabase Connection Status -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div class="flex items-center">
+                    <i class="fas fa-database text-green-600 mr-3"></i>
+                    <div>
+                        <p class="text-sm text-green-800">สถานะ: <span id="syncStatus" class="font-semibold">เชื่อมต่อ Supabase</span></p>
+                        <p class="text-xs text-green-600 mt-1">ข้อมูลบันทึกอัตโนมัติ</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add New Link Form -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">เพิ่มแหล่งข้อมูลใหม่</h2>
+                <form id="addLinkForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="linkTitle" placeholder="ชื่อแหล่งข้อมูล" required
+                            class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <input type="url" id="linkUrl" placeholder="https://example.com" required
+                            class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                    <textarea id="linkDescription" placeholder="คำอธิบาย" rows="3" required
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"></textarea>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <select id="linkCategory" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" onchange="handleCategoryChange()">
+                                <option value="โรคไม่ติดต่อเรื้อรัง">โรคไม่ติดต่อเรื้อรัง</option>
+                                <option value="ความรู้เรื่องมะเร็ง">ความรู้เรื่องมะเร็ง</option>
+                                <option value="โรคติดเชื้อต่างๆ">โรคติดเชื้อต่างๆ</option>
+                                <option value="ความรู้เรื่องยา">ความรู้เรื่องยา</option>
+                                <option value="ความรู้สุขภาพทั่วไป">ความรู้สุขภาพทั่วไป</option>
+                                <option value="ธรรมะ">ธรรมะ</option>
+                                <option value="__custom__">+ เพิ่มหมวดหมู่ใหม่...</option>
+                            </select>
+                            <input type="text" id="customCategory" placeholder="พิมพ์หมวดหมู่ใหม่" 
+                                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 mt-2 hidden">
+                        </div>
+                        <input type="text" id="linkIcon" placeholder="ไอคอน (เช่น fa-heartbeat)" 
+                            class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                    <button type="submit" class="w-full bg-cyan-600 text-white py-2 rounded-lg hover:bg-cyan-700 transition">
+                        <i class="fas fa-plus mr-2"></i>เพิ่มแหล่งข้อมูล
+                    </button>
+                </form>
+            </div>
+
+            <!-- Manage Links -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">จัดการแหล่งข้อมูล (<span id="totalLinks">0</span> รายการ)</h2>
+                <div id="adminLinksList" class="space-y-3">
+                    <!-- Links will be listed here for management -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script>
+        // Admin-specific variables
+        const ADMIN_PASSWORD = CONFIG.ADMIN_PASSWORD;
+        let isAuthenticated = false;
+
+        // Check authentication on load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            document.getElementById('adminPassword').focus();
+        });
+
+        function checkAuth() {
+            const authToken = sessionStorage.getItem('adminAuth');
+            if (authToken === ADMIN_PASSWORD) {
+                showAdminPanel();
+            }
+        }
+
+        function loginAdmin() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === ADMIN_PASSWORD) {
+                sessionStorage.setItem('adminAuth', password);
+                showAdminPanel();
+            } else {
+                alert('รหัสผ่านไม่ถูกต้อง!');
+                document.getElementById('adminPassword').value = '';
+                document.getElementById('adminPassword').focus();
+            }
+        }
+
+        async function showAdminPanel() {
+            isAuthenticated = true;
+            document.getElementById('adminLoginModal').classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            await loadData();
+            displayAdminLinks();
+        }
+
+        function logoutAdmin() {
+            sessionStorage.removeItem('adminAuth');
+            window.location.href = '/';
+        }
+
+        function backToHome() {
+            window.location.href = '/';
+        }
+
+
+        // Handle category change (for custom category)
+        function handleCategoryChange() {
+            const categorySelect = document.getElementById('linkCategory');
+            const customCategoryInput = document.getElementById('customCategory');
+            
+            if (categorySelect.value === '__custom__') {
+                customCategoryInput.classList.remove('hidden');
+                customCategoryInput.focus();
+            } else {
+                customCategoryInput.classList.add('hidden');
+                customCategoryInput.value = '';
+            }
+        }
+
+        // Get selected category (including custom)
+        function getSelectedCategory() {
+            const categorySelect = document.getElementById('linkCategory');
+            const customCategoryInput = document.getElementById('customCategory');
+            
+            if (categorySelect.value === '__custom__') {
+                return customCategoryInput.value.trim() || 'ไม่ระบุ';
+            }
+            return categorySelect.value;
+        }
+
+        // Add or Update link
+        document.getElementById('addLinkForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const editId = this.dataset.editId;
+            
+            const linkData = {
+                title: document.getElementById('linkTitle').value,
+                url: document.getElementById('linkUrl').value,
+                description: document.getElementById('linkDescription').value,
+                category: getSelectedCategory(), // ใช้ฟังก์ชันที่รองรับ custom category
+                icon: document.getElementById('linkIcon').value || 'fa-link'
+            };
+            
+            let success;
+            if (editId) {
+                // Update existing link
+                success = await updateLink(parseInt(editId), linkData);
+                delete this.dataset.editId;
+            } else {
+                // Add new link
+                const newLink = {
+                    id: Date.now(),
+                    ...linkData,
+                    clicks: 0,
+                    created_at: new Date().toISOString()
+                };
+                success = await addLink(newLink);
+            }
+            
+            if (success) {
+                this.reset();
+                document.getElementById('customCategory').classList.add('hidden');
+                document.getElementById('customCategory').value = '';
+                displayAdminLinks();
+                showNotification(editId ? 'อัปเดตข้อมูลสำเร็จ!' : 'เพิ่มแหล่งข้อมูลสำเร็จ!', 'success');
+            }
+        });
+
+        // Display admin links
+        function displayAdminLinks() {
+            const list = document.getElementById('adminLinksList');
+            document.getElementById('totalLinks').textContent = links.length;
+            
+            if (links.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-8">ยังไม่มีข้อมูล</p>';
+                return;
+            }
+            
+            list.innerHTML = links.map(link => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-gray-800">${link.title}</h4>
+                        <p class="text-sm text-gray-600">${link.category} • ${link.clicks || 0} ครั้ง</p>
+                        <p class="text-xs text-gray-400 mt-1">${link.url}</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editLinkAdmin(${link.id})" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteLinkAdmin(${link.id})" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Delete link (using deleteLink from shared.js)
+        async function deleteLinkAdmin(id) {
+            if (confirm('คุณแน่ใจหรือไม่ที่จะลบแหล่งข้อมูลนี้?')) {
+                const success = await deleteLink(id);
+                if (success) {
+                    displayAdminLinks();
+                    showNotification('ลบข้อมูลสำเร็จ!', 'success');
+                }
+            }
+        }
+
+        // Edit link
+        function editLinkAdmin(id) {
+            const link = links.find(l => l.id === id);
+            if (link) {
+                document.getElementById('linkTitle').value = link.title;
+                document.getElementById('linkUrl').value = link.url;
+                document.getElementById('linkDescription').value = link.description;
+                document.getElementById('linkCategory').value = link.category;
+                document.getElementById('linkIcon').value = link.icon;
+                
+                // Store edit ID for update
+                document.getElementById('addLinkForm').dataset.editId = id;
+                
+                // Scroll to form
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,13 @@
+{
+  "name": "health-portal",
+  "version": "1.0.0",
+  "description": "สุขภาพดี - พอร์ทัลความรู้ด้านสุขภาพ",
+  "scripts": {
+    "build": "node generate-config.js"
+  },
+  "keywords": ["health", "portal"],
+  "author": "",
+  "license": "MIT"
+}
+
+
