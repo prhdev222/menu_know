@@ -21,6 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Generate config.js from Secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          node -e "require('fs').writeFileSync('config.js', `// Configuration File - Auto-generated from Environment Variables\nconst CONFIG = {\n    // Supabase Configuration\n    SUPABASE_URL: '${process.env.SUPABASE_URL || ''}',\n    SUPABASE_ANON_KEY: '${process.env.SUPABASE_ANON_KEY || ''}',\n    \n    // Admin Password\n    ADMIN_PASSWORD: '${process.env.ADMIN_PASSWORD || ''}'\n};\n`); console.log('Generated config.js for GitHub Pages');"
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
