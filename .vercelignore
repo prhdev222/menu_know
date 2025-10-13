@@ -1,9 +1,0 @@
-# ไฟล์ที่ไม่ต้อง deploy ไปยัง Vercel
-config.example.js
-README.md
-DEPLOYMENT.md
-.git/
-.gitignore
-node_modules/
-
-
