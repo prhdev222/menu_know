@@ -2,24 +2,34 @@
 // ฟังก์ชันที่ใช้ร่วมกันระหว่าง index.html และ admin.html
 // ระบบใช้ Supabase เท่านั้น - ไม่มี localStorage
 
-// Supabase Configuration
-const SUPABASE_URL = CONFIG.SUPABASE_URL;
-const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
+// NOTE:
+// This file is loaded in the global scope (index.html/admin.html). If it gets loaded twice
+// (browser cache quirks, duplicated script tags, etc.), `let/const` re-declarations will crash.
+// Use `var` + window-backed singletons to be safe.
 
-// Initialize Supabase
-let supabase;
+// Supabase Configuration
+var SUPABASE_URL = (window.CONFIG && window.CONFIG.SUPABASE_URL) || '';
+var SUPABASE_ANON_KEY = (window.CONFIG && window.CONFIG.SUPABASE_ANON_KEY) || '';
+
+// Global singletons (safe to re-run)
+var links = window.links = window.links || [];
+var supabase = window.__supabaseClient || null;
+
+// Initialize Supabase (re-init if missing or if keys changed)
 try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    if (!supabase) {
-        throw new Error('Supabase initialization failed');
+    if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.__supabaseClient = supabase;
+        if (!supabase) throw new Error('Supabase initialization failed');
+    } else {
+        supabase = null;
+        window.__supabaseClient = null;
     }
 } catch (e) {
     console.error('Supabase configuration error:', e);
-    alert('⚠️ กรุณาตั้งค่า Supabase ใน config.js ก่อนใช้งาน!');
+    supabase = null;
+    window.__supabaseClient = null;
 }
-
-// Global data
-let links = [];
 
 // Load data from Supabase only
 async function loadData() {
