@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบผู้ดูแล - สุขภาพดี</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script src="config.js"></script>
     <script src="shared.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -32,7 +30,7 @@
                     กลับหน้าแรก
                 </button>
             </div>
-            <p class="text-sm text-gray-500 mt-4">ตรวจสอบรหัสผ่านใน config.js</p>
+            <p class="text-sm text-gray-500 mt-4">กรอกรหัสผ่านผู้ดูแลเพื่อเข้าใช้งาน</p>
         </div>
     </div>
 
@@ -116,8 +114,7 @@
     
 
     <script>
-        // Admin-specific variables
-        const ADMIN_PASSWORD = CONFIG.ADMIN_PASSWORD;
+        // Admin auth (server-side check; no password stored in client code)
         let isAuthenticated = false;
 
         // Check authentication on load
@@ -128,18 +125,25 @@
 
         function checkAuth() {
             const authToken = sessionStorage.getItem('adminAuth');
-            if (authToken === ADMIN_PASSWORD) {
+            if (authToken === 'ok') {
                 showAdminPanel();
             }
         }
 
-        function loginAdmin() {
+        async function loginAdmin() {
             const password = document.getElementById('adminPassword').value;
-            if (password === ADMIN_PASSWORD) {
-                sessionStorage.setItem('adminAuth', password);
-                showAdminPanel();
-            } else {
-                alert('รหัสผ่านไม่ถูกต้อง!');
+            try {
+                const res = await fetch('/api/admin-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) throw new Error(data.error || 'รหัสผ่านไม่ถูกต้อง');
+                sessionStorage.setItem('adminAuth', 'ok');
+                await showAdminPanel();
+            } catch (e) {
+                alert(e.message || 'รหัสผ่านไม่ถูกต้อง!');
                 document.getElementById('adminPassword').value = '';
                 document.getElementById('adminPassword').focus();
             }

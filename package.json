@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "สุขภาพดี - พอร์ทัลความรู้ด้านสุขภาพ",
   "scripts": {
-    "build": "node generate-config.js"
+    "build": "echo \"No build step\""
   },
   "keywords": ["health", "portal"],
   "author": "",

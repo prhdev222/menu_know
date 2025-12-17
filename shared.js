@@ -1,56 +1,25 @@
 // Shared functions for Health Portal
 // ฟังก์ชันที่ใช้ร่วมกันระหว่าง index.html และ admin.html
-// ระบบใช้ Supabase เท่านั้น - ไม่มี localStorage
+// ระบบใช้ API ฝั่งเซิร์ฟเวอร์ (/api) เท่านั้น (เพื่อไม่ต้องมี config.js หรือ key ในฝั่ง client)
 
 // NOTE:
 // This file is loaded in the global scope (index.html/admin.html). If it gets loaded twice
 // (browser cache quirks, duplicated script tags, etc.), `let/const` re-declarations will crash.
 // Use `var` + window-backed singletons to be safe.
 
-// Supabase Configuration
-var SUPABASE_URL = (window.CONFIG && window.CONFIG.SUPABASE_URL) || '';
-var SUPABASE_ANON_KEY = (window.CONFIG && window.CONFIG.SUPABASE_ANON_KEY) || '';
-
 // Global singletons (safe to re-run)
 var links = window.links = window.links || [];
-var supabase = window.__supabaseClient || null;
-
-// Initialize Supabase (re-init if missing or if keys changed)
-try {
-    if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window.__supabaseClient = supabase;
-        if (!supabase) throw new Error('Supabase initialization failed');
-    } else {
-        supabase = null;
-        window.__supabaseClient = null;
-    }
-} catch (e) {
-    console.error('Supabase configuration error:', e);
-    supabase = null;
-    window.__supabaseClient = null;
-}
 
 // Load data from Supabase only
 async function loadData() {
-    if (!supabase) {
-        console.error('Supabase not configured');
-        links = [];
-        updateSyncStatus('ไม่พร้อมใช้งาน - ตั้งค่า Supabase', null);
-        return;
-    }
-
     try {
-        const { data, error } = await supabase
-            .from('health_links')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        links = data || [];
+        const res = await fetch('/api/links', { method: 'GET' });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload.ok) throw new Error(payload.error || 'โหลดข้อมูลไม่สำเร็จ');
+        links = payload.data || [];
         updateSyncStatus('เชื่อมต่อแล้ว', new Date());
     } catch (error) {
-        console.error('Error loading from Supabase:', error);
+        console.error('Error loading from API:', error);
         links = [];
         updateSyncStatus('เกิดข้อผิดพลาด', null);
         showNotification('ไม่สามารถโหลดข้อมูลจาก Supabase ได้', 'error');
@@ -59,11 +28,6 @@ async function loadData() {
 
 // Save/Update data to Supabase directly
 async function saveData() {
-    if (!supabase) {
-        showNotification('กรุณาตั้งค่า Supabase ก่อน', 'error');
-        return false;
-    }
-
     try {
         showSyncIndicator();
         
@@ -82,23 +46,19 @@ async function saveData() {
 
 // Add new link to Supabase
 async function addLink(linkData) {
-    if (!supabase) {
-        showNotification('กรุณาตั้งค่า Supabase ก่อน', 'error');
-        return false;
-    }
-
     try {
-        const { data, error } = await supabase
-            .from('health_links')
-            .insert([linkData])
-            .select();
-        
-        if (error) throw error;
-        
+        const res = await fetch('/api/links', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(linkData)
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload.ok) throw new Error(payload.error || 'เพิ่มข้อมูลไม่สำเร็จ');
+
         await loadData(); // Reload to get updated data
         return true;
     } catch (error) {
-        console.error('Error adding link:', error);
+        console.error('Error adding link (API):', error);
         showNotification('ไม่สามารถเพิ่มข้อมูลได้', 'error');
         return false;
     }
@@ -106,23 +66,19 @@ async function addLink(linkData) {
 
 // Update link in Supabase
 async function updateLink(id, linkData) {
-    if (!supabase) {
-        showNotification('กรุณาตั้งค่า Supabase ก่อน', 'error');
-        return false;
-    }
-
     try {
-        const { error } = await supabase
-            .from('health_links')
-            .update(linkData)
-            .eq('id', id);
-        
-        if (error) throw error;
-        
+        const res = await fetch(`/api/links?id=${encodeURIComponent(String(id))}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(linkData)
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload.ok) throw new Error(payload.error || 'อัปเดตข้อมูลไม่สำเร็จ');
+
         await loadData(); // Reload to get updated data
         return true;
     } catch (error) {
-        console.error('Error updating link:', error);
+        console.error('Error updating link (API):', error);
         showNotification('ไม่สามารถอัปเดตข้อมูลได้', 'error');
         return false;
     }
@@ -130,23 +86,15 @@ async function updateLink(id, linkData) {
 
 // Delete link from Supabase
 async function deleteLink(id) {
-    if (!supabase) {
-        showNotification('กรุณาตั้งค่า Supabase ก่อน', 'error');
-        return false;
-    }
-
     try {
-        const { error } = await supabase
-            .from('health_links')
-            .delete()
-            .eq('id', id);
-        
-        if (error) throw error;
-        
+        const res = await fetch(`/api/links?id=${encodeURIComponent(String(id))}`, { method: 'DELETE' });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload.ok) throw new Error(payload.error || 'ลบข้อมูลไม่สำเร็จ');
+
         await loadData(); // Reload to get updated data
         return true;
     } catch (error) {
-        console.error('Error deleting link:', error);
+        console.error('Error deleting link (API):', error);
         showNotification('ไม่สามารถลบข้อมูลได้', 'error');
         return false;
     }
@@ -190,18 +138,18 @@ function showNotification(message, type) {
 // Track link clicks and update Supabase
 async function trackClick(id) {
     const link = links.find(l => l.id === id);
-    if (!link || !supabase) return;
+    if (!link) return;
 
     try {
         const newClicks = (link.clicks || 0) + 1;
-        
-        // Update in Supabase
-        const { error } = await supabase
-            .from('health_links')
-            .update({ clicks: newClicks })
-            .eq('id', id);
-        
-        if (error) throw error;
+
+        const res = await fetch(`/api/links?id=${encodeURIComponent(String(id))}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clicks: newClicks })
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload.ok) throw new Error(payload.error || 'อัปเดตคลิกไม่สำเร็จ');
         
         // Update local array
         link.clicks = newClicks;
