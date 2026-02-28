@@ -1,3 +1,21 @@
+// โหลด .env.local เมื่อรัน local (vercel dev) เพื่อให้ process.env มีค่า
+const path = require('path');
+const fs = require('fs');
+const envPath = path.join(__dirname, '..', '.env.local');
+if (fs.existsSync(envPath)) {
+  try {
+    const content = fs.readFileSync(envPath, 'utf8');
+    content.split(/\r?\n/).forEach((line) => {
+      const m = line.match(/^([^#=]+)=(.*)$/);
+      if (m && !process.env[m[1].trim()]) {
+        let val = m[2].trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
+        process.env[m[1].trim()] = val;
+      }
+    });
+  } catch (e) { /* ignore */ }
+}
+
 function getEnv(name) {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env: ${name}`);
@@ -6,8 +24,9 @@ function getEnv(name) {
 
 function getSupabaseConfig() {
   const url = getEnv('SUPABASE_URL').replace(/\/+$/, '');
-  // IMPORTANT: keep this secret (server-side only)
-  const serviceKey = getEnv('SUPABASE_SERVICE_ROLE_KEY');
+  // ใช้ SERVICE_ROLE ถ้ามี (production); ไม่งั้นใช้ ANON สำหรับ local
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!serviceKey) throw new Error('Missing env: SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY');
   return { url, serviceKey };
 }
 

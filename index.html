@@ -276,10 +276,16 @@
                 }
             } catch (e) { /* no-op */ }
 
-            loadData().then(() => {
-                displayLinks();
-                initCategories();
-            });
+            loadData()
+                .then(() => {
+                    displayLinks();
+                    initCategories();
+                })
+                .catch(() => {
+                    // แม้ API ล้มเหลว ก็ยังแสดง layout และกริด (ว่าง)
+                    displayLinks();
+                    initCategories();
+                });
         });
     </script>
 </body>

@@ -3,11 +3,21 @@
   "version": "1.0.0",
   "description": "สุขภาพดี - พอร์ทัลความรู้ด้านสุขภาพ",
   "scripts": {
-    "build": "echo \"No build step\""
+    "build": "echo \"No build step\"",
+    "dev": "node server.js",
+    "local": "vercel dev",
+    "start": "node server.js"
   },
-  "keywords": ["health", "portal"],
+  "keywords": [
+    "health",
+    "portal"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  }
 }
-
-
